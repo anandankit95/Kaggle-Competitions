@@ -91,7 +91,7 @@ categoricals_test.describe()
         
  
 #Remove the categorcial attributes which have categories<=6
-#this is beacauese the wont affect much the dependent variable  
+#this is beacauese this wont affect much the dependent variable  
 
     
 for column in categoricals_train.columns:
@@ -122,30 +122,83 @@ for i in l:
     test.iloc[:,i]=labelencoder_test.fit_transform(test.iloc[:,i].factorize()[0])
 
 #Encode the dataset to get dummy categories
-#train=pd.get_dummies(train,columns=['Neighborhood','Condition1','Condition2','HouseStyle','RoofMatl','Exterior1st','Exterior2nd','FullBath','TotRmsAbvGrd','Functional','Fireplaces','GarageCars','SaleType']) 
-#test=pd.get_dummies(test,columns=['Neighborhood','Condition1','Condition2','HouseStyle','RoofMatl','Exterior1st','Exterior2nd','FullBath','TotRmsAbvGrd','Functional','Fireplaces','GarageCars','SaleType'])    
+train=pd.get_dummies(train,columns=['Neighborhood','Condition1','Condition2','HouseStyle','RoofMatl','Exterior1st','Exterior2nd','FullBath','TotRmsAbvGrd','Functional','Fireplaces','GarageCars','SaleType']) 
+test=pd.get_dummies(test,columns=['Neighborhood','Condition1','Condition2','HouseStyle','RoofMatl','Exterior1st','Exterior2nd','FullBath','TotRmsAbvGrd','Functional','Fireplaces','GarageCars','SaleType'])
 
-train.isnull().any()
+#Now Avoid Dummy variable trap
+train=train.drop('Neighborhood_23',axis=1)
+train=train.drop('Condition1_7',axis=1)   
+train=train.drop('Condition2_6',axis=1) 
+train=train.drop('HouseStyle_6',axis=1)  
+train=train.drop('RoofMatl_7',axis=1) 
+train=train.drop('Exterior1st_14',axis=1) 
+train=train.drop('Exterior2nd_15',axis=1) 
+train=train.drop('FullBath_3',axis=1) 
+train=train.drop('TotRmsAbvGrd_14',axis=1) 
+train=train.drop('Functional_6',axis=1)
+train=train.drop('Fireplaces_3',axis=1) 
+train=train.drop('GarageCars_4',axis=1)  
+train=train.drop('SaleType_8',axis=1)
+train=train.drop('Condition1_8',axis=1)
+train=train.drop('Condition2_4',axis=1)
+train=train.drop('Condition2_5',axis=1)
+train=train.drop('Condition2_7',axis=1)
 
+test=test.drop('Neighborhood_24',axis=1)
+test=test.drop('Condition1_8',axis=1)   
+test=test.drop('Condition2_4',axis=1) 
+test=test.drop('HouseStyle_6',axis=1)  
+test=test.drop('RoofMatl_3',axis=1) 
+test=test.drop('Exterior1st_13',axis=1) 
+test=test.drop('Exterior2nd_15',axis=1) 
+test=test.drop('FullBath_4',axis=1) 
+test=test.drop('TotRmsAbvGrd_15',axis=1) 
+test=test.drop('Functional_7',axis=1)
+test=test.drop('Fireplaces_4',axis=1) 
+test=test.drop('GarageCars_5.0',axis=1)  
+test=test.drop('SaleType_9',axis=1)  
+
+ 
+
+print(list(train.isnull().any()))
+
+#Remove Null values
 train['MasVnrArea']=train['MasVnrArea'].factorize()[0]
 train.isnull().any()
-test.isnull().any()
+print(list(test.isnull().any()))
 test['MasVnrArea']=test['MasVnrArea'].factorize()[0]
 test['TotalBsmtSF']=test['TotalBsmtSF'].factorize()[0]
-test['GarageCars']=test['GarageCars'].factorize()[0]
 test['GarageArea']=test['GarageArea'].factorize()[0]
-test.isnull().any()
+print(list(test.isnull().any()))
+
+X=train.iloc[:,:]
+X=X.drop('SalePrice',axis=1)
+y=train.iloc[:,8]
+
+#Now Standatdize the dataset
+# Feature Scaling
+
+
+from sklearn.preprocessing import StandardScaler
+sc_train = StandardScaler()
+sc_test = StandardScaler()
+
+X = sc_train.fit_transform(X)
+test = sc_test.fit_transform(test)
+
+  #Dependent Variable
+#Now Split the Dataset into Independent and Dependent Variables
 
 #Run Random forest regression
 from sklearn.ensemble import RandomForestRegressor
 regressor = RandomForestRegressor(n_estimators = 100, random_state = 0)
-regressor.fit(train.iloc[:,:-1], train.iloc[:,-1])
+regressor.fit(X, y)
 final_prediction=regressor.predict(test)
 
 #Run decision tree regression
 from sklearn.tree import DecisionTreeRegressor
 regressor=DecisionTreeRegressor()
-regressor.fit(train.iloc[:,:-1], train.iloc[:,-1])
+regressor.fit(X,y)
 final_prediction=regressor.predict(test)
 
 
@@ -153,15 +206,41 @@ final_prediction=regressor.predict(test)
 #Run support vector regression
 from sklearn.svm import SVR
 regressor = SVR(kernel='linear')
-regressor.fit(train.iloc[:,:-1], train.iloc[:,-1])
+regressor.fit(X,y)
 final_prediction=regressor.predict(test)
 
 #run linear regression
 from sklearn.linear_model import LinearRegression
 regressor=LinearRegression()
-regressor.fit(train.iloc[:,:-1], train.iloc[:,-1])
+regressor.fit(X,y)
 final_prediction=regressor.predict(test)
 
+"""
+#Run ANN
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.models import model_from_json
+import os
+
+regressor = Sequential()
+regressor.add(Dense(units = 61, kernel_initializer = 'uniform', activation = 'sigmoid', input_dim = 121))
+# Adding the second hidden layer
+regressor.add(Dense(units= 61, kernel_initializer ='uniform', activation = 'sigmoid'))
+#here we dont use ant activation function for regression problem
+regressor.add(Dense(units = 1, kernel_initializer = 'uniform'))
+X=np.array(X)
+y=np.array(y)
+regressor.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['accuracy'])
+
+regressor.fit(X, y, batch_size = 10, nb_epoch = 100)
+
+# evaluate the model
+scores = regressor.evaluate(X, y, verbose=0)
+print("%s: %.2f%%" % (regressor.metrics_names[1], scores[1]*100))
+
+final_prediction=regressor.predict(test)
+"""
 
 
 
@@ -170,7 +249,9 @@ final_prediction=regressor.predict(test)
 
 
 
-submission=open('/Users/arjita/ML/KaggleRegressionCompetition/LinearRegressionSubmission.csv','w')
+
+
+submission=open('/Users/arjita/ML/KaggleRegressionCompetition/RandomForest1Submission.csv','w')
 submission.write('Id'+','+'SalePrice'+'\n')
 for i in range(len(final_prediction)):
     submission.write(str(i+1461)+','+str(format(final_prediction[i],'0.9f'))+'\n')
